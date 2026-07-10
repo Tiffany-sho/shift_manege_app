@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>シフト管理・給与計算アプリ — モック（管理者）</title>
+<style>
+  /* ===== Design tokens (DESIGN.md 準拠) ===== */
+  :root{
+    --primary:#1a2336; --primary-active:#121a29;
+    --ink:#181d26; --body:#333840; --muted:#41454d;
+    --hairline:#dddddd; --border-strong:#9297a0;
+    --canvas:#ffffff; --surface-soft:#f8fafc; --surface-strong:#e0e2e6;
+    --surface-dark:#1a2336;
+    --coral:#a83a3d; --forest:#1a5c34; --cream:#f5e9d4;
+    --peach:#fcab79; --mint:#a8d8c4;
+    --on-primary:#ffffff; --link:#1b61c9;
+    --success:#006400; --success-border:#39bf45; --info:#254fad;
+    /* radius */
+    --r-sm:6px; --r-md:10px; --r-lg:12px; --r-pill:9999px;
+    /* spacing base 4px */
+    --s-xxs:4px; --s-xs:8px; --s-sm:12px; --s-md:16px; --s-lg:24px; --s-xl:32px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter",Roboto,"Helvetica Neue","Hiragino Sans","Noto Sans JP",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--font); color:var(--body); background:var(--surface-soft);
+       font-size:14px; line-height:1.4; -webkit-font-smoothing:antialiased;}
+  h1,h2,h3{color:var(--ink); font-weight:500; margin:0;}
+  button{font-family:inherit; cursor:pointer;}
+
+  /* ===== App shell ===== */
+  .app{display:grid; grid-template-columns:232px 1fr; min-height:100vh;}
+  /* Sidebar */
+  .sidebar{background:var(--canvas); border-right:1px solid var(--hairline);
+           display:flex; flex-direction:column; position:sticky; top:0; height:100vh;}
+  .brand{padding:20px 20px 16px; display:flex; align-items:center; gap:10px;
+         border-bottom:1px solid var(--hairline);}
+  .brand .logo{width:28px;height:28px;border-radius:8px;background:var(--primary);
+    color:#fff;display:grid;place-items:center;font-weight:600;font-size:15px;}
+  .brand .name{font-weight:500;color:var(--ink);font-size:15px;line-height:1.2;}
+  .brand .sub{font-size:11px;color:var(--muted);letter-spacing:.02em;}
+  .nav{padding:12px 12px; display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav .grp{font-size:11px;color:var(--border-strong);padding:12px 12px 4px;letter-spacing:.06em;}
+  .nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:transparent;border:0;border-radius:var(--r-sm);padding:9px 12px;
+    color:var(--body);font-size:14px;}
+  .nav button .ic{width:18px;text-align:center;opacity:.75;}
+  .nav button:hover{background:var(--surface-soft);}
+  .nav button.active{background:var(--surface-strong);color:var(--ink);font-weight:500;}
+  .nav button.disabled{color:var(--border-strong);cursor:default;}
+  .nav button.disabled:hover{background:transparent;}
+  .navbadge{margin-left:auto;background:var(--coral);color:#fff;font-size:11px;font-weight:600;
+    min-width:18px;height:18px;padding:0 5px;border-radius:var(--r-pill);display:grid;place-items:center;}
+  .navbadge.zero{display:none;}
+  .who{padding:14px 16px;border-top:1px solid var(--hairline);display:flex;align-items:center;gap:10px;}
+  .avatar{width:32px;height:32px;border-radius:var(--r-pill);background:var(--forest);
+    color:#fff;display:grid;place-items:center;font-size:13px;}
+  .who .meta{font-size:13px;} .who .meta .r{font-size:11px;color:var(--muted);}
+
+  /* Main */
+  .main{display:flex;flex-direction:column;min-width:0;}
+  .topbar{height:60px;background:var(--canvas);border-bottom:1px solid var(--hairline);
+    display:flex;align-items:center;gap:16px;padding:0 24px;position:sticky;top:0;z-index:5;}
+  .topbar h1{font-size:20px;}
+  .topbar .spacer{flex:1;}
+  .content{padding:24px;max-width:1280px;width:100%;}
+
+  /* ===== Buttons ===== */
+  .btn{border-radius:var(--r-lg);padding:10px 18px;font-size:14px;font-weight:500;
+    border:1px solid transparent;line-height:1.4;display:inline-flex;align-items:center;gap:8px;}
+  .btn-primary{background:var(--primary);color:var(--on-primary);}
+  .btn-primary:hover{background:var(--primary-active);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border-color:var(--hairline);}
+  .btn-secondary:hover{border-color:var(--border-strong);}
+  .btn-ghost{background:transparent;color:var(--body);border-color:transparent;padding:8px 10px;}
+  .btn-ghost:hover{background:var(--surface-soft);}
+  .btn-sm{padding:6px 12px;font-size:13px;border-radius:var(--r-md);}
+  .btn-danger{background:var(--canvas);color:var(--coral);border-color:var(--hairline);}
+
+  /* chips / badges */
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hairline);
+    background:var(--canvas);border-radius:var(--r-pill);padding:6px 14px;font-size:13px;color:var(--body);}
+  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.prog{background:var(--forest);} .dot.illust{background:var(--coral);}
+  .badge{font-size:11px;padding:2px 8px;border-radius:var(--r-pill);font-weight:500;letter-spacing:.02em;}
+  .badge.draft{background:var(--surface-strong);color:var(--muted);}
+  .badge.published{background:#e6f0e6;color:var(--success);}
+  .badge.locked{background:var(--surface-dark);color:#fff;}
+  .badge.open{background:#eaf1ff;color:var(--info);}
+
+  /* card */
+  .card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-md);}
+
+  /* ===== Screens ===== */
+  .screen{display:none;} .screen.active{display:block;}
+
+  /* ---- Calendar ---- */
+  .cal-toolbar{display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+  .monthnav{display:flex;align-items:center;gap:6px;}
+  .monthnav .m{font-size:18px;font-weight:500;color:var(--ink);min-width:150px;text-align:center;}
+  .iconbtn{width:36px;height:36px;border-radius:var(--r-pill);border:1px solid var(--hairline);
+    background:var(--canvas);color:var(--ink);font-size:16px;display:grid;place-items:center;}
+  .iconbtn:hover{background:var(--surface-soft);}
+  .legend{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+
+  .calendar{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;}
+  .cal-head,.cal-row{display:grid;grid-template-columns:repeat(7,1fr);}
+  .cal-head div{padding:10px 8px;font-size:12px;color:var(--muted);text-align:left;
+    border-bottom:1px solid var(--hairline);background:var(--surface-soft);}
+  .cal-head div.sun{color:var(--coral);} .cal-head div.sat{color:var(--info);}
+  .cell{min-height:118px;border-right:1px solid var(--hairline);border-bottom:1px solid var(--hairline);
+    padding:6px;display:flex;flex-direction:column;gap:4px;position:relative;}
+  .cell:nth-child(7n){border-right:0;}
+  .cell.dim{background:#fbfcfd;} .cell .dnum{font-size:12px;color:var(--body);}
+  .cell.today .dnum{background:var(--primary);color:#fff;border-radius:var(--r-pill);
+    width:22px;height:22px;display:grid;place-items:center;font-weight:500;}
+  .cell .dnum.sun{color:var(--coral);} .cell .dnum.sat{color:var(--info);}
+  .ev{border-radius:var(--r-sm);padding:3px 7px;font-size:11.5px;color:#fff;cursor:pointer;
+    display:flex;justify-content:space-between;gap:4px;line-height:1.3;border:1px solid transparent;}
+  .ev.prog{background:var(--forest);} .ev.illust{background:var(--coral);}
+  .ev.draft{background:var(--canvas);color:var(--muted);border:1px dashed var(--border-strong);}
+  .ev .t{opacity:.85;font-variant-numeric:tabular-nums;font-size:10.5px;}
+  .ev:hover{filter:brightness(1.08);}
+  .addmini{margin-top:auto;font-size:11px;color:var(--border-strong);border:0;background:transparent;
+    text-align:left;padding:2px 4px;border-radius:4px;opacity:0;transition:opacity .1s;}
+  .cell:hover .addmini{opacity:1;} .addmini:hover{background:var(--surface-soft);color:var(--body);}
+
+  /* ---- Drawer (shift edit) ---- */
+  .overlay{position:fixed;inset:0;background:rgba(24,29,38,.35);opacity:0;visibility:hidden;
+    transition:opacity .18s;z-index:20;}
+  .overlay.show{opacity:1;visibility:visible;}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:420px;max-width:92vw;background:var(--canvas);
+    box-shadow:-8px 0 32px rgba(24,29,38,.14);transform:translateX(100%);transition:transform .2s ease;
+    z-index:21;display:flex;flex-direction:column;}
+  .drawer.show{transform:translateX(0);}
+  .drawer .dhead{padding:20px 24px;border-bottom:1px solid var(--hairline);display:flex;align-items:center;}
+  .drawer .dhead h2{font-size:18px;} .drawer .dbody{padding:24px;overflow:auto;flex:1;}
+  .drawer .dfoot{padding:16px 24px;border-top:1px solid var(--hairline);display:flex;gap:10px;justify-content:space-between;}
+  .field{margin-bottom:18px;} .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+  .input,select.input{width:100%;height:44px;border:1px solid var(--hairline);border-radius:var(--r-sm);
+    padding:10px 14px;font-size:14px;font-family:inherit;color:var(--ink);background:var(--canvas);}
+  .input:focus,select.input:focus{outline:2px solid #458fff;border-color:#458fff;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .seg{display:flex;gap:8px;}
+  .seg .opt{flex:1;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:10px;text-align:center;
+    font-size:13px;background:var(--canvas);color:var(--body);}
+  .seg .opt.sel{border-color:var(--primary);background:var(--surface-soft);color:var(--ink);font-weight:500;}
+  .hint{font-size:12px;color:var(--muted);background:var(--surface-soft);border:1px solid var(--hairline);
+    border-radius:var(--r-sm);padding:10px 12px;margin-top:8px;}
+
+  /* ---- Payroll ---- */
+  .pay-toolbar{display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+  .summ{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+  .summ .card{padding:18px 20px;} .summ .k{font-size:12px;color:var(--muted);margin-bottom:8px;}
+  .summ .v{font-size:26px;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums;}
+  .summ .v small{font-size:14px;color:var(--muted);font-weight:400;margin-left:2px;}
+  table.pay{width:100%;border-collapse:collapse;background:var(--canvas);}
+  table.pay th,table.pay td{padding:13px 14px;text-align:right;font-variant-numeric:tabular-nums;
+    border-bottom:1px solid var(--hairline);font-size:13.5px;}
+  table.pay th{background:var(--surface-soft);color:var(--muted);font-weight:500;font-size:12px;
+    position:sticky;top:60px;}
+  table.pay th:first-child,table.pay td:first-child{text-align:left;}
+  table.pay td.name{color:var(--ink);font-weight:500;}
+  table.pay tr:hover td{background:var(--surface-soft);}
+  table.pay td.total{color:var(--ink);font-weight:600;}
+  table.pay tfoot td{border-top:2px solid var(--border-strong);border-bottom:0;font-weight:600;color:var(--ink);
+    background:var(--surface-soft);}
+  .sub{font-size:11px;color:var(--border-strong);}
+  .status-note{display:flex;align-items:center;gap:10px;background:var(--cream);border:1px solid #e8d9bb;
+    border-radius:var(--r-md);padding:12px 16px;margin-bottom:18px;font-size:13px;color:#5a4a2a;}
+
+  /* ---- Dashboard ---- */
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .panel{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--r-md);padding:20px;}
+  .panel h3{font-size:15px;margin-bottom:2px;}
+  .panel .cap{font-size:12px;color:var(--muted);margin-bottom:18px;}
+  /* composition bar */
+  .compbar{display:flex;height:16px;border-radius:var(--r-pill);overflow:hidden;margin:6px 0 14px;}
+  .compbar span{display:block;height:100%;}
+  .seg-prog{background:var(--forest);} .seg-illust{background:var(--coral);}
+  .biz-table{width:100%;border-collapse:collapse;}
+  .biz-table td{padding:9px 4px;border-bottom:1px solid var(--hairline);font-size:13.5px;
+    font-variant-numeric:tabular-nums;text-align:right;}
+  .biz-table td:first-child{text-align:left;}
+  .biz-table tr:last-child td{border-bottom:0;}
+  .biz-name{display:inline-flex;align-items:center;gap:8px;color:var(--ink);}
+  /* trend bars */
+  .trend{display:flex;align-items:flex-end;gap:14px;height:180px;padding-top:8px;}
+  .trend .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end;}
+  .trend .bar{width:70%;max-width:44px;border-radius:6px 6px 0 0;overflow:hidden;display:flex;flex-direction:column-reverse;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.03);}
+  .trend .bar .p{background:var(--forest);} .trend .bar .i{background:var(--coral);}
+  .trend .xl{font-size:11px;color:var(--muted);} .trend .val{font-size:10.5px;color:var(--border-strong);}
+  .trend .col.cur .xl{color:var(--ink);font-weight:600;}
+  /* cumulative area chart */
+  #cumChart svg{width:100%;height:auto;display:block;}
+  /* staff drawer: wage items */
+  .draw-sec{font-size:12px;color:var(--muted);font-weight:500;margin:22px 0 10px;
+    padding-bottom:6px;border-bottom:1px solid var(--hairline);}
+  .wage-item{display:flex;justify-content:space-between;align-items:center;
+    border:1px solid var(--hairline);border-radius:var(--r-sm);padding:11px 14px;margin-bottom:8px;}
+  .wage-item .job{font-size:13.5px;color:var(--ink);display:flex;align-items:center;gap:8px;}
+  .wage-item .from{font-size:11px;color:var(--muted);margin-top:3px;}
+  .wage-item .rate{font-size:16px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .hist-label{font-size:11px;color:var(--border-strong);margin:6px 0 4px 2px;}
+  .hist .h{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);
+    padding:5px 10px;border-left:2px solid var(--hairline);margin:0 0 2px 8px;font-variant-numeric:tabular-nums;}
+  .wage-input{border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:10px;
+    background:var(--surface-soft);}
+  .wi-head{font-size:13px;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:8px;font-weight:500;}
+  /* rank table reuse .pay */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--primary);color:#fff;padding:12px 20px;border-radius:var(--r-md);font-size:13px;
+    opacity:0;visibility:hidden;transition:all .2s;z-index:40;box-shadow:0 8px 24px rgba(0,0,0,.2);}
+  .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
+
+  @media(max-width:900px){
+    .dash-grid{grid-template-columns:1fr;}
+    .app{grid-template-columns:1fr;}
+    .sidebar{position:fixed;left:0;top:0;z-index:30;transform:translateX(-100%);transition:transform .2s;}
+    .sidebar.open{transform:translateX(0);}
+    .summ{grid-template-columns:repeat(2,1fr);}
+    .cell{min-height:88px;}
+    .hamb{display:grid !important;}
+  }
+  .hamb{display:none;}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">R</div>
+      <div>
+        <div class="name">rtech シフト管理</div>
+        <div class="sub">ADMIN CONSOLE</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="grp">管理</div>
+      <button class="active" data-screen="calendar"><span class="ic">🗓</span>シフトカレンダー</button>
+      <button data-screen="staff"><span class="ic">👥</span>従業員・時給設定</button>
+      <button data-screen="overtime"><span class="ic">🏠</span>時間外勤務 申請<span class="navbadge" id="otBadge">2</span></button>
+      <button data-screen="payroll"><span class="ic">🧮</span>給与計算・締め処理</button>
+      <button data-screen="dashboard"><span class="ic">🧾</span>源泉徴収票</button>
+      <div class="grp">出力</div>
+      <button class="disabled" title="モック未実装"><span class="ic">📄</span>給与明細</button>
+      <button class="disabled" title="モック未実装"><span class="ic">⬇</span>CSV出力</button>
+    </nav>
+    <div class="who">
+      <div class="avatar">守</div>
+      <div class="meta"><div>守屋</div><div class="r">管理者</div></div>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <div class="topbar">
+      <button class="iconbtn hamb" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <h1 id="pageTitle">シフトカレンダー</h1>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary btn-sm" id="topAction2">公開状況を確認</button>
+      <button class="btn btn-primary btn-sm" id="topAction" onclick="openDrawer()">＋ 新規シフト</button>
+    </div>
+
+    <div class="content">
+      <!-- ========== Screen 1: Calendar ========== -->
+      <section class="screen active" id="screen-calendar">
+        <div class="cal-toolbar">
+          <div class="monthnav">
+            <button class="iconbtn">‹</button>
+            <div class="m">2026年 7月</div>
+            <button class="iconbtn">›</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <span class="chip active">すべて</span>
+            <span class="chip"><span class="dot prog"></span>プログラミング</span>
+            <span class="chip"><span class="dot illust"></span>イラスト</span>
+          </div>
+          <div class="spacer" style="flex:1"></div>
+          <div class="legend">
+            <span><span class="dot prog"></span>プログラミング教室</span>
+            <span><span class="dot illust"></span>イラスト教室</span>
+            <span><span style="width:14px;height:11px;border:1px dashed var(--border-strong);border-radius:3px;display:inline-block"></span>下書き</span>
+          </div>
+        </div>
+
+        <div class="calendar">
+          <div class="cal-head">
+            <div class="sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="sat">土</div>
+          </div>
+          <!-- weeks rendered by JS -->
+          <div id="calBody"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:12px;">
+          セルにカーソルを合わせると「＋追加」、シフトをクリックすると編集ドロワーが開きます。（ダミーデータ）
+        </p>
+      </section>
+
+      <!-- ========== Screen 4: Staff & wage settings ========== -->
+      <section class="screen" id="screen-staff">
+        <div class="pay-toolbar">
+          <input class="input" id="staffSearch" placeholder="🔍 従業員を検索" style="max-width:240px;height:40px;" oninput="renderStaffList()">
+          <div style="display:flex;gap:8px;">
+            <span class="chip active" id="chipActive" onclick="setStaffFilter('active')">在籍のみ</span>
+            <span class="chip" id="chipAll" onclick="setStaffFilter('all')">退職含む</span>
+          </div>
+          <div class="spacer" style="flex:1"></div>
+          <button class="btn btn-primary btn-sm" onclick="openNewStaff()">＋ 従業員を登録</button>
+        </div>
+
+        <div class="panel" style="padding:0;overflow-x:auto;">
+          <table class="pay">
+            <thead>
+              <tr><th>従業員</th><th style="text-align:left;">所属事業</th><th style="text-align:left;">時給（業務別・現在）</th>
+                  <th>交通費<br><span class="sub">日額</span></th><th style="text-align:center;">在籍状態</th><th></th></tr>
+            </thead>
+            <tbody id="staffRows"></tbody>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:12px;">
+          行をクリックすると詳細・時給設定（昇給履歴つき）を編集できます。時給は「従業員 × 業務（教室）」で設定。退職処理は<strong>論理削除</strong>（データは保持）。数値はダミー。
+        </p>
+      </section>
+
+      <!-- ========== Screen 2 is the Drawer (opened over any screen) ========== -->
+
+      <!-- ========== Screen 3: Payroll ========== -->
+      <section class="screen" id="screen-payroll">
+        <div class="pay-toolbar">
+          <div class="monthnav">
+            <button class="iconbtn">‹</button>
+            <div class="m" style="min-width:200px;">2026年 6月度（月末締め）</div>
+            <button class="iconbtn">›</button>
+          </div>
+          <div class="spacer" style="flex:1"></div>
+          <span class="badge open" style="padding:6px 12px;">未確定</span>
+          <button class="btn btn-secondary btn-sm">CSV出力</button>
+          <button class="btn btn-primary btn-sm" onclick="confirmPayroll()">この期間を確定する</button>
+        </div>
+
+        <div class="status-note" id="payNote">
+          <span>⚠️</span>
+          <div>締め前です。<strong>実績（欠勤・遅刻・時間変更）の確認・修正</strong>を済ませてから確定してください。確定後はシフトがロックされ編集不可になります。</div>
+        </div>
+
+        <div class="summ">
+          <div class="card"><div class="k">対象従業員</div><div class="v">4<small>名</small></div></div>
+          <div class="card"><div class="k">総勤務時間</div><div class="v">312.5<small>h</small></div></div>
+          <div class="card"><div class="k">時間外勤務（承認済）</div><div class="v">¥5,550<small> / 4.5h</small></div></div>
+          <div class="card"><div class="k">支給総額（見込）</div><div class="v">¥463,700</div></div>
+        </div>
+
+        <div class="card" style="overflow-x:auto;">
+          <table class="pay">
+            <thead>
+              <tr>
+                <th>従業員</th>
+                <th>出勤<br><span class="sub">日数</span></th>
+                <th>勤務<br><span class="sub">時間</span></th>
+                <th>基本給</th>
+                <th>深夜割増<br><span class="sub">25%</span></th>
+                <th>残業割増<br><span class="sub">法定 25%</span></th>
+                <th>時間外勤務<br><span class="sub">在宅・承認済</span></th>
+                <th>交通費</th>
+                <th>支給総額</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="name">田中 花子<div class="sub">プログラミング / イラスト</div></td>
+                <td>18</td><td>96.0</td><td>¥124,800</td><td>¥1,625</td><td>¥3,900</td><td>¥2,600<div class="sub">2.0h</div></td><td>¥14,400</td>
+                <td class="total">¥147,325</td>
+              </tr>
+              <tr>
+                <td class="name">佐藤 太郎<div class="sub">プログラミング</div></td>
+                <td>15</td><td>82.5</td><td>¥107,250</td><td>¥0</td><td>¥1,300</td><td>¥1,300<div class="sub">1.0h</div></td><td>¥12,000</td>
+                <td class="total">¥121,850</td>
+              </tr>
+              <tr>
+                <td class="name">鈴木 美咲<div class="sub">イラスト</div></td>
+                <td>16</td><td>78.0</td><td>¥85,800</td><td>¥825</td><td>¥0</td><td>¥1,650<div class="sub">1.5h</div></td><td>¥16,000</td>
+                <td class="total">¥104,275</td>
+              </tr>
+              <tr>
+                <td class="name">山本 健一<div class="sub">プログラミング / イラスト</div></td>
+                <td>14</td><td>56.0</td><td>¥71,600</td><td>¥0</td><td>¥2,650</td><td>¥0<div class="sub">—</div></td><td>¥16,000</td>
+                <td class="total">¥90,250</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>合計</td><td>63</td><td>312.5</td><td>¥389,450</td><td>¥2,450</td><td>¥7,850</td><td>¥5,550</td><td>¥58,400</td>
+                <td>¥463,700</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:12px;">
+          金額はダミー。<strong>「時間外勤務（在宅・承認済）」</strong>は従業員の申請を管理者が承認した分のみを加算（＝<strong>残業割増：法定8h/40h超過</strong>とは別物）。端数処理ルール（分単位／円未満）は要件TODOのため未適用。
+        </p>
+      </section>
+
+      <!-- ========== Screen 4: Overtime (home-work) applications ========== -->
+      <section class="screen" id="screen-overtime">
+        <div class="pay-toolbar">
+          <div>
+            <h2 style="font-size:18px;margin-bottom:4px;">時間外勤務 申請</h2>
+            <div style="font-size:12px;color:var(--muted);">シフト外に自宅等で行った勤務。従業員の申請を管理者が承認すると給与に加算されます。</div>
+          </div>
+          <div class="spacer" style="flex:1"></div>
+          <div style="display:flex;gap:8px;">
+            <span class="chip active" id="otPending">承認待ち 2</span>
+            <span class="chip">承認済み</span>
+            <span class="chip">却下</span>
+          </div>
+        </div>
+
+        <div class="card" style="overflow-x:auto;">
+          <table class="pay">
+            <thead>
+              <tr>
+                <th>従業員</th>
+                <th style="text-align:left;">勤務日</th>
+                <th style="text-align:left;">作業内容</th>
+                <th>申請時間</th>
+                <th>適用時給</th>
+                <th>加算額</th>
+                <th style="text-align:center;">ステータス</th>
+                <th style="text-align:center;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="otRows">
+              <tr data-h="2.0" data-amt="¥2,600">
+                <td class="name">田中 花子</td>
+                <td style="text-align:left;">2026-07-08</td>
+                <td style="text-align:left;">教材スライド作成（次回授業用）<div class="sub">プログラミング</div></td>
+                <td>2.0h</td><td>¥1,300</td><td>¥2,600</td>
+                <td style="text-align:center;"><span class="badge open">承認待ち</span></td>
+                <td style="text-align:center;white-space:nowrap;">
+                  <button class="btn btn-primary btn-sm" onclick="decide(this,'approve')">承認</button>
+                  <button class="btn btn-danger btn-sm" onclick="decide(this,'reject')">却下</button>
+                </td>
+              </tr>
+              <tr data-h="1.5" data-amt="¥1,650">
+                <td class="name">鈴木 美咲</td>
+                <td style="text-align:left;">2026-07-07</td>
+                <td style="text-align:left;">生徒作品の添削・コメント作成<div class="sub">イラスト</div></td>
+                <td>1.5h</td><td>¥1,100</td><td>¥1,650</td>
+                <td style="text-align:center;"><span class="badge open">承認待ち</span></td>
+                <td style="text-align:center;white-space:nowrap;">
+                  <button class="btn btn-primary btn-sm" onclick="decide(this,'approve')">承認</button>
+                  <button class="btn btn-danger btn-sm" onclick="decide(this,'reject')">却下</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="name">佐藤 太郎</td>
+                <td style="text-align:left;">2026-07-05</td>
+                <td style="text-align:left;">授業準備・提出コードの添削<div class="sub">プログラミング</div></td>
+                <td>1.0h</td><td>¥1,300</td><td>¥1,300</td>
+                <td style="text-align:center;"><span class="badge published">承認済み</span></td>
+                <td style="text-align:center;" class="sub">守屋 / 07-06</td>
+              </tr>
+              <tr>
+                <td class="name">山本 健一</td>
+                <td style="text-align:left;">2026-07-03</td>
+                <td style="text-align:left;">生徒からの質問対応（チャット）<div class="sub">プログラミング</div></td>
+                <td>0.5h</td><td>¥1,250</td><td>¥0</td>
+                <td style="text-align:center;"><span class="badge" style="background:#f6e2dd;color:var(--coral);">却下</span></td>
+                <td style="text-align:center;" class="sub">守屋 / 07-04</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:12px;">
+          従業員は「申請（コメント送信）」のみ可能で、データの直接編集はできません（改ざん防止方針と整合）。承認された申請だけが給与計算に反映され、承認/却下の履歴が記録されます。<br>
+          <span style="color:var(--coral);">※ この機能は現行の要件定義書 v0.1 には未記載。確定後は要件書・CLAUDE.md に追記予定。</span>
+        </p>
+      </section>
+
+      <!-- ========== Screen 5: Withholding tax certificate (源泉徴収票) ========== -->
+      <section class="screen" id="screen-dashboard">
+        <div class="pay-toolbar">
+          <div class="monthnav">
+            <button class="iconbtn" onclick="switchYear(-1)">‹</button>
+            <div class="m" id="whYear" style="min-width:210px;">2025年分（確定）</div>
+            <button class="iconbtn" onclick="switchYear(1)">›</button>
+          </div>
+          <div class="spacer" style="flex:1"></div>
+          <span class="badge" id="whBadge" style="padding:6px 12px;"></span>
+          <span id="whDlAll"></span>
+        </div>
+
+        <div class="status-note" id="whNote"></div>
+
+        <!-- KPI -->
+        <div class="summ">
+          <div class="card"><div class="k">対象従業員</div><div class="v">4<small>名</small></div></div>
+          <div class="card"><div class="k">支払金額 合計</div><div class="v" id="whPay"></div></div>
+          <div class="card"><div class="k">源泉徴収税額 合計</div><div class="v" id="whTax"></div></div>
+          <div class="card"><div class="k" id="whPeriodK"></div><div class="v" id="whPeriodV"></div></div>
+        </div>
+
+        <!-- Cumulative trend (full width) -->
+        <div class="panel" style="margin-bottom:16px;">
+          <h3 id="whChartTitle"></h3>
+          <div class="cap" id="whChartCap"></div>
+          <div id="cumChart"></div>
+        </div>
+
+        <!-- Withholding table -->
+        <div class="panel" style="padding:0;overflow-x:auto;">
+          <div style="padding:20px 20px 0;"><h3>従業員別 源泉徴収 一覧</h3>
+            <div class="cap" id="whTableCap"></div></div>
+          <table class="pay">
+            <thead>
+              <tr><th>従業員</th><th>支払金額<br><span class="sub">累計</span></th>
+                  <th>課税対象<br><span class="sub">累計</span></th><th>源泉徴収税額<br><span class="sub">累計</span></th>
+                  <th style="text-align:center;">源泉徴収票</th></tr>
+            </thead>
+            <tbody id="whRows"></tbody>
+            <tfoot id="whFoot"></tfoot>
+          </table>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:12px;">
+          数値はダミー。源泉徴収税額は簡易計算（扶養控除・社会保険料控除は未反映）。<strong>確定した過年度（2025年分）のみダウンロード可能</strong>で、本年度（2026年）は途中経過の閲覧のみ・年度確定後に発行。
+          <span style="color:var(--coral);">※ 税額計算／源泉徴収票の発行は要件定義書 v0.1 では「スコープ外」。方針変更のため CLAUDE.md に追記済み（税額計算の範囲は要決定）。</span>
+        </p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===== Shift Edit Drawer (Screen 2) ===== -->
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dhead">
+    <h2 id="drawerTitle">シフトを編集</h2>
+    <div style="flex:1"></div>
+    <button class="iconbtn" onclick="closeDrawer()" style="border:0;">✕</button>
+  </div>
+  <div class="dbody">
+    <div class="field">
+      <label>日付</label>
+      <input class="input" type="date" value="2026-07-13">
+    </div>
+    <div class="row2">
+      <div class="field"><label>開始時刻</label><input class="input" type="time" value="17:00"></div>
+      <div class="field"><label>終了時刻</label><input class="input" type="time" value="21:30"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>休憩（分）</label><input class="input" type="number" value="30"></div>
+      <div class="field"><label>実働時間</label><input class="input" value="4時間00分" readonly style="background:var(--surface-soft);"></div>
+    </div>
+    <div class="field">
+      <label>従業員</label>
+      <select class="input">
+        <option>田中 花子</option><option>佐藤 太郎</option>
+        <option>鈴木 美咲</option><option>山本 健一</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>業務（教室）</label>
+      <div class="seg">
+        <div class="opt sel"><span class="dot prog"></span> プログラミング</div>
+        <div class="opt"><span class="dot illust"></span> イラスト</div>
+      </div>
+      <div class="hint">適用時給：<strong>プログラミング講師 ¥1,300 / 時</strong>（田中 花子・2026-04-01〜）</div>
+    </div>
+    <div class="field">
+      <label>ステータス</label>
+      <div class="seg">
+        <div class="opt sel">下書き</div>
+        <div class="opt">公開</div>
+        <div class="opt" style="opacity:.5;">確定（ロック）</div>
+      </div>
+      <div class="hint">公開すると従業員のカレンダーに表示されます。確定は給与締め処理から行います。</div>
+    </div>
+    <div class="field">
+      <label>実績メモ（欠勤・遅刻・早退・時間変更）</label>
+      <input class="input" placeholder="例：遅刻 30分（本人連絡あり）">
+      <div class="hint">修正内容は変更履歴（誰が・いつ・何を）として記録されます。</div>
+    </div>
+  </div>
+  <div class="dfoot">
+    <button class="btn btn-danger btn-sm">削除</button>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" onclick="closeDrawer()">キャンセル</button>
+      <button class="btn btn-primary" onclick="closeDrawer()">保存</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== Staff detail drawer (Screen 4) ===== -->
+<aside class="drawer" id="staffDrawer">
+  <div class="dhead">
+    <h2 id="stName">従業員</h2>
+    <div style="flex:1"></div>
+    <button class="iconbtn" onclick="closeDrawer()" style="border:0;">✕</button>
+  </div>
+  <div class="dbody" id="stBody"></div>
+  <div class="dfoot">
+    <button class="btn btn-danger btn-sm" onclick="toast('退職処理（論理削除）を実行します（ダミー）')">退職処理</button>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" onclick="closeDrawer()">キャンセル</button>
+      <button class="btn btn-primary" onclick="closeDrawer()">保存</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== New staff registration drawer ===== -->
+<aside class="drawer" id="newStaffDrawer">
+  <div class="dhead">
+    <h2>従業員を登録</h2>
+    <div style="flex:1"></div>
+    <button class="iconbtn" onclick="closeDrawer()" style="border:0;">✕</button>
+  </div>
+  <div class="dbody" id="nsBody"></div>
+  <div class="dfoot" style="justify-content:flex-end;">
+    <button class="btn btn-secondary" onclick="closeDrawer()">キャンセル</button>
+    <button class="btn btn-primary" onclick="toast('従業員を登録しました（ダミー）'); closeDrawer();">登録する</button>
+  </div>
+</aside>
+
+<script>
+  /* ---- Screen switching ---- */
+  const titles = {calendar:'シフトカレンダー', staff:'従業員・時給設定', payroll:'給与計算・締め処理', overtime:'時間外勤務 申請', dashboard:'源泉徴収票'};
+  document.querySelectorAll('.nav button[data-screen]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const s=b.dataset.screen;
+      document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+      document.getElementById('screen-'+s).classList.add('active');
+      document.getElementById('pageTitle').textContent=titles[s];
+      // top actions
+      const isCal=s==='calendar';
+      document.getElementById('topAction').style.display=isCal?'inline-flex':'none';
+      document.getElementById('topAction2').style.display=isCal?'inline-flex':'none';
+      document.getElementById('sidebar').classList.remove('open');
+      window.scrollTo(0,0);
+    });
+  });
+
+  /* ---- Drawer ---- */
+  function openDrawer(title){
+    if(title) document.getElementById('drawerTitle').textContent=title;
+    document.getElementById('overlay').classList.add('show');
+    document.getElementById('drawer').classList.add('show');
+  }
+  function closeDrawer(){
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('drawer').classList.remove('show');
+    document.getElementById('staffDrawer').classList.remove('show');
+    document.getElementById('newStaffDrawer').classList.remove('show');
+  }
+
+  /* ---- Staff & wage settings ---- */
+  const staffData=[
+    {name:'田中 花子', email:'tanaka@rtech.example', biz:'両方', active:true, commute:800, commuteFrom:'2026-04-01',
+     wages:[
+       {job:'プログラミング講師', rate:1300, from:'2026-04-01', cur:true},
+       {job:'イラスト補助', rate:1100, from:'2026-04-01', cur:true},
+       {job:'プログラミング講師', rate:1250, from:'2025-04-01', cur:false},
+     ]},
+    {name:'佐藤 太郎', email:'sato@rtech.example', biz:'プログラミング', active:true, commute:800, commuteFrom:'2025-10-01',
+     wages:[
+       {job:'プログラミング講師', rate:1300, from:'2025-10-01', cur:true},
+       {job:'プログラミング講師', rate:1200, from:'2025-04-01', cur:false},
+     ]},
+    {name:'鈴木 美咲', email:'suzuki@rtech.example', biz:'イラスト', active:true, commute:1000, commuteFrom:'2026-04-01',
+     wages:[
+       {job:'イラスト講師', rate:1200, from:'2026-04-01', cur:true},
+       {job:'イラスト補助', rate:1100, from:'2025-04-01', cur:false},
+     ]},
+    {name:'山本 健一', email:'yamamoto@rtech.example', biz:'両方', active:true, commute:1000, commuteFrom:'2025-04-01',
+     wages:[
+       {job:'プログラミング補助', rate:1250, from:'2025-04-01', cur:true},
+       {job:'イラスト補助', rate:1100, from:'2025-04-01', cur:true},
+     ]},
+    {name:'高橋 恵', email:'takahashi@rtech.example', biz:'イラスト', active:false, retiredOn:'2025-12-31', commute:900, commuteFrom:'2024-04-01',
+     wages:[{job:'イラスト補助', rate:1100, from:'2024-04-01', cur:true}]},
+  ];
+  const jobDot = job => job.includes('プログラ')
+    ? '<span class="dot prog"></span>' : '<span class="dot illust"></span>';
+  function bizDots(biz){
+    if(biz==='両方') return '<span class="dot prog"></span> <span class="dot illust"></span> 両方';
+    if(biz==='プログラミング') return '<span class="dot prog"></span> プログラミング';
+    return '<span class="dot illust"></span> イラスト';
+  }
+  let staffFilter='active';
+  function setStaffFilter(f){
+    staffFilter=f;
+    document.getElementById('chipActive').classList.toggle('active', f==='active');
+    document.getElementById('chipAll').classList.toggle('active', f==='all');
+    renderStaffList();
+  }
+  function renderStaffList(){
+    const q=(document.getElementById('staffSearch').value||'').trim();
+    const html=staffData.map((s,i)=>{
+      if(staffFilter==='active' && !s.active) return '';
+      if(q && !s.name.includes(q)) return '';
+      const cur=s.wages.filter(w=>w.cur);
+      const wageSummary=cur.map(w=>`${jobDot(w.job)} ¥${w.rate.toLocaleString()}`).join('　');
+      const status=s.active
+        ? '<span class="badge published">在籍</span>'
+        : '<span class="badge draft">退職</span>';
+      return `<tr onclick="openStaff(${i})" style="cursor:pointer;${s.active?'':'opacity:.6;'}">
+        <td class="name">${s.name}<div class="sub">${s.email}</div></td>
+        <td style="text-align:left;">${bizDots(s.biz)}</td>
+        <td style="text-align:left;">${wageSummary}</td>
+        <td>¥${s.commute.toLocaleString()}</td>
+        <td style="text-align:center;">${status}</td>
+        <td style="text-align:center;color:var(--border-strong);">›</td></tr>`;
+    }).join('');
+    document.getElementById('staffRows').innerHTML = html ||
+      '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px;">該当する従業員がいません</td></tr>';
+  }
+  function openStaff(i){
+    const s=staffData[i];
+    document.getElementById('stName').textContent=s.name;
+    const cur=s.wages.filter(w=>w.cur), past=s.wages.filter(w=>!w.cur);
+    const bizSeg=['プログラミング','イラスト','両方']
+      .map(b=>`<div class="opt ${s.biz===b?'sel':''}">${b}</div>`).join('');
+    const wageHtml=cur.map(w=>`
+      <div class="wage-item">
+        <div><div class="job">${jobDot(w.job)} ${w.job}</div><div class="from">適用 ${w.from}〜</div></div>
+        <div class="rate">¥${w.rate.toLocaleString()}<span style="font-size:11px;color:var(--muted)"> /時</span></div>
+      </div>`).join('');
+    const pastHtml = past.length
+      ? `<div class="hist-label">昇給・改定履歴</div><div class="hist">`+
+        past.map(w=>`<div class="h"><span>${w.job}　¥${w.rate.toLocaleString()}</span><span>${w.from}〜</span></div>`).join('')+
+        `</div>` : '';
+    document.getElementById('stBody').innerHTML=`
+      <div class="field"><label>メールアドレス</label><input class="input" value="${s.email}"></div>
+      <div class="field"><label>在籍状態</label>
+        <div class="seg"><div class="opt ${s.active?'sel':''}">在籍</div><div class="opt ${!s.active?'sel':''}">退職</div></div>
+        ${!s.active?`<div class="hint">退職日: ${s.retiredOn}（論理削除・データは保持）</div>`:''}</div>
+      <div class="field"><label>所属事業</label><div class="seg">${bizSeg}</div></div>
+      <div class="draw-sec">時給設定（従業員 × 業務）</div>
+      ${wageHtml}${pastHtml}
+      <button class="btn btn-secondary btn-sm" style="margin-top:10px;" onclick="toast('時給の改定（新しい適用開始日で追加）フォームを開きます（ダミー）')">＋ 時給を改定</button>
+      <div class="draw-sec">交通費（日額固定）</div>
+      <div class="wage-item">
+        <div><div class="job">🚃 交通費</div><div class="from">適用 ${s.commuteFrom}〜</div></div>
+        <div class="rate">¥${s.commute.toLocaleString()}<span style="font-size:11px;color:var(--muted)"> /日</span></div>
+      </div>
+      <div class="hint">出勤日数 × 日額 で給与計算に自動反映されます。</div>`;
+    document.getElementById('overlay').classList.add('show');
+    document.getElementById('staffDrawer').classList.add('show');
+  }
+  renderStaffList();
+
+  /* ---- New staff registration form ---- */
+  let newStaffBiz='両方';
+  function openNewStaff(){ newStaffBiz='両方'; renderNewStaff();
+    document.getElementById('overlay').classList.add('show');
+    document.getElementById('newStaffDrawer').classList.add('show'); }
+  function setNewBiz(b){ newStaffBiz=b; renderNewStaff(); }
+  function wageInput(kind,label,ph){
+    const dot = kind==='prog'?'<span class="dot prog"></span>':'<span class="dot illust"></span>';
+    return `<div class="wage-input"><div class="wi-head">${dot} ${label}</div>
+      <div class="row2">
+        <div class="field" style="margin-bottom:10px;"><label>業務</label>
+          <select class="input"><option>講師</option><option>補助</option></select></div>
+        <div class="field" style="margin-bottom:10px;"><label>時給（円）</label>
+          <input class="input" type="number" placeholder="${ph}"></div>
+      </div>
+      <div class="field" style="margin-bottom:0;"><label>適用開始日</label>
+        <input class="input" type="date" value="2026-08-01"></div></div>`;
+  }
+  function renderNewStaff(){
+    const b=newStaffBiz;
+    const bizSeg=['プログラミング','イラスト','両方']
+      .map(x=>`<div class="opt ${b===x?'sel':''}" onclick="setNewBiz('${x}')">${x}</div>`).join('');
+    const progRow=(b==='プログラミング'||b==='両方') ? wageInput('prog','プログラミング教室','1300') : '';
+    const illRow =(b==='イラスト'||b==='両方')       ? wageInput('illust','イラスト教室','1100') : '';
+    document.getElementById('nsBody').innerHTML=`
+      <div class="field"><label>氏名</label><input class="input" placeholder="例：山田 太郎"></div>
+      <div class="field"><label>メールアドレス</label><input class="input" type="email" placeholder="example@rtech.example"></div>
+      <div class="field"><label>初期パスワード</label><input class="input" type="text" placeholder="自動生成も可">
+        <div class="hint">初回ログイン後に本人が変更します。従業員の操作は閲覧・申請のみ（データ編集不可）。</div></div>
+      <div class="field"><label>所属事業</label><div class="seg">${bizSeg}</div></div>
+      <div class="draw-sec">時給設定（従業員 × 業務）</div>
+      ${progRow}${illRow}
+      <div class="hint">所属事業に応じて設定。時給は適用開始日を持ち、以降の改定は昇給履歴として管理されます。</div>
+      <div class="draw-sec">交通費（日額固定）</div>
+      <div class="row2">
+        <div class="field" style="margin-bottom:0;"><label>日額（円）</label><input class="input" type="number" placeholder="800"></div>
+        <div class="field" style="margin-bottom:0;"><label>適用開始日</label><input class="input" type="date" value="2026-08-01"></div>
+      </div>`;
+  }
+
+  /* ---- Dashboard: 源泉徴収票（年度切替） ---- */
+  const whData = {
+    2025:{
+      confirmed:true,
+      label:'2025年分（確定）',
+      badge:{cls:'published', text:'年末調整済・確定'},
+      note:{bg:'#e6f0e6', bd:'#bcdcbc', fg:'#006400', icon:'✓',
+        html:'<strong>2025年分</strong>は年末調整済の確定版です。従業員ごと／全員分をダウンロードできます。'},
+      periodK:'対象年度', periodV:'2025<small>年</small>',
+      chartTitle:'2025年 累計 支払金額の推移',
+      chartCap:'2025年1月〜12月（各月末時点の累計）',
+      months:['1','2','3','4','5','6','7','8','9','10','11','12'],
+      monthly:[400000,410000,425000,440000,415000,450000,465000,395000,418000,432000,445000,320000],
+      tableCap:'支払金額・源泉徴収税額は2025年分の確定額（簡易計算のダミー）。各行から源泉徴収票をダウンロードできます。',
+      dlAllMsg:'2025年分 全従業員の源泉徴収票をZIPでダウンロードしました（ダミー）',
+      rows:[
+        {n:'田中 花子', k:'給与（甲欄）', pay:1620000, tax:49600},
+        {n:'佐藤 太郎', k:'給与（甲欄）', pay:1340000, tax:38200},
+        {n:'鈴木 美咲', k:'給与（甲欄）', pay:1150000, tax:31500},
+        {n:'山本 健一', k:'給与（乙欄）', pay:905000,  tax:21300},
+      ],
+    },
+    2026:{
+      confirmed:false,
+      label:'2026年（途中経過）',
+      badge:{cls:'open', text:'年度途中（閲覧のみ）'},
+      note:{bg:'#eaf1ff', bd:'#c5d8ff', fg:'#254fad', icon:'ℹ️',
+        html:'<strong>2026年</strong>は進行中のため <strong>途中経過（1月〜7月の累計）の閲覧のみ</strong>。源泉徴収票のダウンロードは年度確定（年末調整後）に可能になります。'},
+      periodK:'対象期間', periodV:'1〜7<small>月</small>',
+      chartTitle:'2026年 累計 支払金額の推移（途中経過）',
+      chartCap:'2026年1月〜現在（7月は月途中）',
+      months:['1','2','3','4','5','6','7'],
+      monthly:[410000,398000,452000,470000,441000,463700,215000],
+      tableCap:'支払金額・源泉徴収税額は2026年1〜7月の累計（簡易計算のダミー）。年度途中のためダウンロードは不可。',
+      dlAllMsg:null,
+      rows:[
+        {n:'田中 花子', k:'給与（甲欄）', pay:920000, tax:28140},
+        {n:'佐藤 太郎', k:'給与（甲欄）', pay:760000, tax:21700},
+        {n:'鈴木 美咲', k:'給与（甲欄）', pay:650000, tax:17900},
+        {n:'山本 健一', k:'給与（乙欄）', pay:519700, tax:12300},
+      ],
+    },
+  };
+  const yen = n => '¥'+n.toLocaleString();
+
+  function renderCum(months, monthly){
+    const el=document.getElementById('cumChart'); if(!el)return;
+    const cum=monthly.reduce((a,v,i)=>{a.push((a[i-1]||0)+v);return a;},[]);
+    const W=340,H=190, pl=8,pr=8,pt=14,pb=28;
+    const pw=W-pl-pr, ph=H-pt-pb;
+    const max=cum[cum.length-1], n=cum.length;
+    const X=i=> pl + (n===1?0:i/(n-1)*pw);
+    const Y=v=> pt + (1 - v/max)*ph;
+    const line=cum.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+    const area=`${pl},${pt+ph} ${line} ${pl+pw},${pt+ph}`;
+    const dots=cum.map((v,i)=>{const cur=i===n-1;
+      return `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${cur?4.5:3}"
+        fill="${cur?'#1a5c34':'#fff'}" stroke="#1a5c34" stroke-width="1.5"/>`;}).join('');
+    const xlabels=months.map((m,i)=>`<text x="${X(i).toFixed(1)}" y="${H-9}"
+        font-size="10" fill="#41454d" text-anchor="middle">${m}</text>`).join('');
+    const curLabel=`<text x="${X(n-1).toFixed(1)}" y="${(Y(max)-10).toFixed(1)}" font-size="11"
+        font-weight="600" fill="#181d26" text-anchor="end">¥${(max/10000).toFixed(0)}万</text>`;
+    el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="累計支払金額の推移">
+      <polyline points="${area}" fill="rgba(26,92,52,.10)" stroke="none"/>
+      <polyline points="${line}" fill="none" stroke="#1a5c34" stroke-width="2"
+        stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${curLabel}${xlabels}</svg>`;
+  }
+
+  let whYear = 2025;
+  function switchYear(dir){
+    const next=whYear+dir;
+    if(whData[next]){ whYear=next; renderWithholding(); }
+  }
+  function renderWithholding(){
+    const d=whData[whYear];
+    document.getElementById('whYear').textContent=d.label;
+    const badge=document.getElementById('whBadge');
+    badge.className='badge '+d.badge.cls; badge.style.padding='6px 12px'; badge.textContent=d.badge.text;
+    const note=document.getElementById('whNote');
+    note.style.background=d.note.bg; note.style.borderColor=d.note.bd; note.style.color=d.note.fg;
+    note.innerHTML=`<span>${d.note.icon}</span><div>${d.note.html}</div>`;
+    const payTot=d.rows.reduce((s,r)=>s+r.pay,0), taxTot=d.rows.reduce((s,r)=>s+r.tax,0);
+    document.getElementById('whPay').textContent=yen(payTot);
+    document.getElementById('whTax').textContent=yen(taxTot);
+    document.getElementById('whPeriodK').textContent=d.periodK;
+    document.getElementById('whPeriodV').innerHTML=d.periodV;
+    document.getElementById('whDlAll').innerHTML = d.confirmed
+      ? `<button class="btn btn-primary btn-sm" onclick="toast('${d.dlAllMsg}')">⬇ 全員分をダウンロード</button>`
+      : `<button class="btn btn-secondary btn-sm" disabled style="opacity:.5;cursor:not-allowed;">⬇ 年度確定後にDL可</button>`;
+    document.getElementById('whChartTitle').textContent=d.chartTitle;
+    document.getElementById('whChartCap').textContent=d.chartCap;
+    renderCum(d.months, d.monthly);
+    document.getElementById('whTableCap').textContent=d.tableCap;
+    document.getElementById('whRows').innerHTML=d.rows.map(r=>{
+      const dl=d.confirmed
+        ? `<button class="btn btn-secondary btn-sm" onclick="toast('${r.n} さんの${whYear}年分 源泉徴収票をダウンロードしました')">⬇ PDF</button>`
+        : `<span class="sub">—</span>`;
+      return `<tr><td class="name">${r.n}</td>
+        <td>${yen(r.pay)}</td><td>${yen(r.pay)}</td><td>${yen(r.tax)}</td>
+        <td style="text-align:center;">${dl}</td></tr>`;
+    }).join('');
+    document.getElementById('whFoot').innerHTML=`<tr><td>合計（${d.rows.length}名）</td>
+      <td>${yen(payTot)}</td><td>${yen(payTot)}</td><td>${yen(taxTot)}</td><td></td></tr>`;
+  }
+  renderWithholding();
+
+  /* ---- Toast ---- */
+  let toastTimer;
+  function toast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+  }
+
+  /* ---- Overtime approve / reject ---- */
+  let otPendingCount = 2;
+  function decide(btn, action){
+    const tr = btn.closest('tr');
+    const statusCell = tr.querySelector('td:nth-child(7)');
+    const opCell = btn.closest('td');
+    if(action==='approve'){
+      statusCell.innerHTML='<span class="badge published">承認済み</span>';
+    }else{
+      statusCell.innerHTML='<span class="badge" style="background:#f6e2dd;color:var(--coral);">却下</span>';
+      // 却下は加算額を 0 表示に
+      tr.querySelector('td:nth-child(6)').innerHTML='¥0';
+    }
+    opCell.innerHTML='<span class="sub">守屋 / 07-10</span>';
+    otPendingCount--;
+    const badge=document.getElementById('otBadge');
+    badge.textContent=otPendingCount;
+    if(otPendingCount<=0) badge.classList.add('zero');
+    document.getElementById('otPending').textContent='承認待ち '+Math.max(otPendingCount,0);
+  }
+
+  function confirmPayroll(){
+    if(confirm('2026年6月度を確定します。確定後、対象期間のシフトはロックされ編集できません。よろしいですか？')){
+      document.getElementById('payNote').innerHTML='<span>🔒</span><div><strong>確定済み</strong>：2026年6月度は確定されました。シフトはロックされ、給与明細（PDF）を発行できます。</div>';
+      document.getElementById('payNote').style.background='#e6f0e6';
+      document.getElementById('payNote').style.borderColor='#bcdcbc';
+      document.getElementById('payNote').style.color='var(--success)';
+    }
+  }
+
+  /* ---- Calendar data (July 2026, dummy) ---- */
+  // July 1 2026 = Wednesday. Grid starts Sunday June 28.
+  const shifts = {
+    2:[['illust','13:00','鈴木 美咲','pub'],['prog','17:00','佐藤 太郎','pub']],
+    3:[['prog','17:00','田中 花子','pub']],
+    6:[['prog','16:30','佐藤 太郎','pub'],['illust','18:00','鈴木 美咲','draft']],
+    7:[['illust','13:00','鈴木 美咲','pub']],
+    8:[['prog','17:00','田中 花子','pub'],['prog','17:00','山本 健一','pub']],
+    10:[['prog','17:00','佐藤 太郎','pub'],['illust','19:00','鈴木 美咲','pub']],
+    13:[['prog','17:00','田中 花子','draft']],
+    14:[['illust','13:00','鈴木 美咲','pub'],['prog','18:00','山本 健一','pub']],
+    15:[['prog','17:00','佐藤 太郎','pub']],
+    17:[['prog','16:30','田中 花子','pub'],['illust','18:00','鈴木 美咲','pub']],
+    20:[['prog','17:00','山本 健一','draft']],
+    21:[['illust','13:00','鈴木 美咲','pub']],
+    22:[['prog','17:00','田中 花子','pub'],['prog','17:00','佐藤 太郎','pub']],
+    24:[['illust','19:00','鈴木 美咲','pub']],
+    27:[['prog','16:30','佐藤 太郎','pub']],
+    28:[['illust','13:00','鈴木 美咲','pub'],['prog','18:00','山本 健一','pub']],
+    29:[['prog','17:00','田中 花子','pub']],
+    31:[['prog','17:00','山本 健一','draft']],
+  };
+  const nameShort = n => n.split(' ')[0];
+  const startDay = new Date(2026,6,1).getDay(); // 3 (Wed)
+  const daysInMonth = 31, prevTail = startDay; // 3 dim cells before
+  const prevMonthDays = 30; // June has 30
+  const TODAY = 10;
+
+  const body = document.getElementById('calBody');
+  let cells = [];
+  // leading dim
+  for(let i=0;i<prevTail;i++){ cells.push({dim:true, d:prevMonthDays-prevTail+1+i}); }
+  for(let d=1;d<=daysInMonth;d++){ cells.push({dim:false, d}); }
+  while(cells.length%7!==0){ cells.push({dim:true, d:cells.length-daysInMonth-prevTail+1}); }
+
+  let html='';
+  cells.forEach((c,i)=>{
+    if(i%7===0) html+='<div class="cal-row">';
+    const dow=i%7;
+    const cls=['cell']; if(c.dim)cls.push('dim'); if(!c.dim&&c.d===TODAY)cls.push('today');
+    const numcls = dow===0?'sun':dow===6?'sat':'';
+    html+=`<div class="${cls.join(' ')}">`;
+    html+=`<div class="dnum ${numcls}">${c.d}</div>`;
+    if(!c.dim && shifts[c.d]){
+      shifts[c.d].forEach(s=>{
+        const [biz,time,name,st]=s;
+        const evcls = st==='draft' ? 'ev draft' : 'ev '+biz;
+        html+=`<div class="${evcls}" onclick="openDrawer('シフトを編集')">
+                 <span>${nameShort(name)}${st==='draft'?' <span style=\'opacity:.7\'>(下書)</span>':''}</span>
+                 <span class="t">${time}</span></div>`;
+      });
+    }
+    if(!c.dim) html+=`<button class="addmini" onclick="openDrawer('新規シフト')">＋ 追加</button>`;
+    html+='</div>';
+    if(i%7===6) html+='</div>';
+  });
+  body.innerHTML=html;
+</script>
+</body>
+</html>
